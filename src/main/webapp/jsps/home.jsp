@@ -9,7 +9,7 @@
 </head>
 </head>
 <body>
-<h1 align="center">Chandra is the student of KK DevOps</h1>
+<h1 align="center">Chandrasekhar is the student of KK DevOps</h1>
 <h1 align="center"> KK FUNDA</h1>
 <hr>
 <br>
