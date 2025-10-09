@@ -1,36 +1,40 @@
+Here's your adjusted Jenkins pipeline script with the non-breaking space issue resolved and a few formatting improvements for clarity and consistency:
+
+```groovy
 pipeline {
     agent any
     tools {
         maven "maven_3.9.11"
     }
     stages {
-        stage('git checkout') {
+        stage('Git Checkout') {
             steps {
                 notifyBuild('STARTED')
                 git branch: 'development', url: 'https://github.com/chandra6302090543/maven-webapplication-project-kkfunda.git'
             }
         }
-        stage('build') {
+        stage('Build') {
             steps {
                 sh "mvn clean package"
             }
         }
-        stage('SQ Report') {
+        stage('SonarQube Report') {
             steps {
                 sh "mvn sonar:sonar"
             }
         }
-        stage('Uploadinto Nexus') {
+        stage('Upload to Nexus') {
             steps {
                 sh "mvn deploy"
             }
         }
-
         stage('Slack Approval for Tomcat Deploy') {
             steps {
                 script {
                     def userInput = input(
-                        id: 'DeployApproval', message: 'Approve Tomcat Deployment?', parameters: [
+                        id: 'DeployApproval',
+                        message: 'Approve Tomcat Deployment?',
+                        parameters: [
                             [$class: 'BooleanParameterDefinition', defaultValue: false, description: 'Check to approve deployment', name: 'Approve']
                         ]
                     )
@@ -43,8 +47,7 @@ pipeline {
                 }
             }
         }
-
-        stage('tomcat deploy') {
+        stage('Tomcat Deploy') {
             steps {
                 sh """
                     curl -u admin:password \
@@ -54,7 +57,6 @@ pipeline {
             }
         }
     }
-
     post {
         success {
             script {
@@ -88,5 +90,7 @@ def notifyBuild(String buildStatus = 'STARTED') {
             colorCode = '#FF0000' // Red
     }
 
-    slackSend(color: colorCode, message: summary, channel: '#jio-dev')
+    slackSend(color: colorCode, message: summary, channel: '#jio-dev')
 }
+
+
