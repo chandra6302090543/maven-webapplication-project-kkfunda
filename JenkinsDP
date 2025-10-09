@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+    tools {
+        maven "maven_3.9.11"
+    }
+    stages {
+        stage('git checkout') {
+            steps {
+                notifyBuild('STARTED')
+                git branch: 'development', url: 'https://github.com/chandra6302090543/maven-webapplication-project-kkfunda.git'
+            }
+        }
+        stage('build') {
+            steps {
+                sh "mvn clean package"
+            }
+        }
+        stage('SQ Report') {
+            steps {
+                sh "mvn sonar:sonar"
+            }
+        }
+        stage('Uploadinto Nexus') {
+            steps {
+                sh "mvn deploy"
+            }
+        }
+
+        stage('Slack Approval for Tomcat Deploy') {
+            steps {
+                script {
+                    def userInput = input(
+                        id: 'DeployApproval', message: 'Approve Tomcat Deployment?', parameters: [
+                            [$class: 'BooleanParameterDefinition', defaultValue: false, description: 'Check to approve deployment', name: 'Approve']
+                        ]
+                    )
+                    if (!userInput) {
+                        slackSend(color: '#FF0000', message: "REJECTED: Tomcat deployment was rejected for Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+                        error("Deployment rejected by user.")
+                    } else {
+                        slackSend(color: '#00FF00', message: "APPROVED: Tomcat deployment approved for Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+                    }
+                }
+            }
+        }
+
+        stage('tomcat deploy') {
+            steps {
+                sh """
+                    curl -u admin:password \
+                    --upload-file /var/lib/jenkins/workspace/Declarative/target/maven-web-application.war \
+                    "http://13.203.154.242:8080/manager/text/deploy?path=/maven-web-application&update=true"
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                notifyBuild(currentBuild.result)
+            }
+        }
+        failure {
+            script {
+                notifyBuild(currentBuild.result)
+            }
+        }
+    }
+}
+
+// Notification method
+def notifyBuild(String buildStatus = 'STARTED') {
+    buildStatus = buildStatus ?: 'SUCCESS'
+
+    def colorCode
+    def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+    def summary = "${subject} (${env.BUILD_URL})"
+
+    switch (buildStatus) {
+        case 'STARTED':
+            colorCode = '#FFFF00' // Yellow
+            break
+        case 'SUCCESS':
+            colorCode = '#00FF00' // Green
+            break
+        default:
+            colorCode = '#FF0000' // Red
+    }
+
+    slackSend(color: colorCode, message: summary, channel: '#jio-dev')
+}
