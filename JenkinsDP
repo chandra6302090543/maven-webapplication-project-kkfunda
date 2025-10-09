@@ -1,6 +1,3 @@
-Here's your adjusted Jenkins pipeline script with the non-breaking space issue resolved and a few formatting improvements for clarity and consistency:
-
-```groovy
 pipeline {
     agent any
     tools {
