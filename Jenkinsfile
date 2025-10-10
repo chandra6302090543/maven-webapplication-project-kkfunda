@@ -45,7 +45,7 @@ node
 
       curl -u admin:password \
 --upload-file /var/lib/jenkins/workspace/scripted-pipeline/target/maven-web-application.war \
-"http://13.203.76.178:8080/manager/text/deploy?path=/maven-web-application&update=true"
+"http://65.2.150.106/:8080/manager/text/deploy?path=/maven-web-application&update=true"
           
         """
     }
