@@ -1,0 +1,76 @@
+node {
+  echo "git branch name: ${env.BRANCH_NAME}"
+  echo "build number is: ${env.BUILD_NUMBER}"
+  echo "node name is: ${env.NODE_NAME}"
+
+  def mavenHome = tool name: "maven_3.9.11"
+
+  try {
+    stage('Git Checkout') {
+      notifyBuild('STARTED')
+      git branch: 'development', url: 'https://github.com/chandra6302090543/maven-webapplication-project-kkfunda.git'
+    }
+
+    stage('Compile') {
+      sh "${mavenHome}/bin/mvn clean compile"
+    }
+
+    stage('Build') {
+      sh "${mavenHome}/bin/mvn clean package"
+    }
+
+    stage('SonarQube Report') {
+      sh "${mavenHome}/bin/mvn sonar:sonar"
+    }
+
+    stage('Upload Artifact') {
+      sh "${mavenHome}/bin/mvn clean deploy"
+    }
+
+    stage('Verify WAR File') {
+      sh "ls -lh target/maven-web-application.war"
+    }
+
+    stage('Deploy to Tomcat') {
+      def deployStatus = sh(
+        script: """
+          curl -s -o response.txt -w "%{http_code}" -u admin:password \\
+          --upload-file target/maven-web-application.war \\
+          "http://65.2.150.106:8080/manager/text/deploy?path=/maven-web-application&update=true"
+        """,
+        returnStdout: true
+      ).trim()
+
+      echo "Tomcat response code: ${deployStatus}"
+      sh "cat response.txt"
+
+      if (deployStatus != '200') {
+        error "Tomcat deployment failed with HTTP status ${deployStatus}"
+      }
+    }
+
+    currentBuild.result = 'SUCCESS'
+  } catch (e) {
+    currentBuild.result = 'FAILURE'
+    error "Build failed: ${e.message}"
+  } finally {
+    notifyBuild(currentBuild.result)
+  }
+}
+
+def notifyBuild(String buildStatus = 'STARTED') {
+  buildStatus = buildStatus ?: 'SUCCESS'
+
+  def colorCode = '#FF0000'
+  def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+  def summary = "${subject} (${env.BUILD_URL})"
+
+  if (buildStatus == 'STARTED') {
+    colorCode = '#FFFF00'
+  } else if (buildStatus == 'SUCCESS') {
+    colorCode = '#00FF00'
+  }
+
+  slackSend(color: colorCode, message: summary, channel: '#jio-dev')
+  slackSend(color: colorCode, message: summary, channel: '#jio-devops')
+}
